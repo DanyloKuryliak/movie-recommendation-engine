@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: movie-recommendation-api
+    runtime: python
+    rootDir: api
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.11
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://movie-recommendation-web.onrender.com
+      - key: RECOMMENDER_ARTIFACT_PATH
+        value: /etc/secrets/recommender-artifact.json.gz.b64
+
+  - type: web
+    name: movie-recommendation-web
+    runtime: static
+    rootDir: web
+    buildCommand: npm ci && npm run typecheck && npm run build
+    staticPublishPath: out
+    autoDeployTrigger: commit
+    envVars:
+      - key: NEXT_PUBLIC_API_BASE_URL
+        value: https://movie-recommendation-api.onrender.com

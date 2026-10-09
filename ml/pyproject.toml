@@ -1,0 +1,13 @@
+[project]
+name = "movie-recommendation-training"
+version = "0.1.0"
+description = "Local MovieLens recommendation experiments with Spark ALS and MLflow"
+requires-python = ">=3.10"
+dependencies = [
+    "mlflow>=3.0,<4",
+    "numpy>=2.0,<3",
+    "pyspark>=4.1,<4.2",
+]
+
+[tool.uv]
+package = false

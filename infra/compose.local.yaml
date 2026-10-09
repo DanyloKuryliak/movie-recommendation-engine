@@ -1,0 +1,90 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - recommender_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mlflow:
+    profiles: ["training"]
+    image: movie-recommendation-training:local
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.training
+      args:
+        LOCAL_UID: ${LOCAL_UID:-1000}
+        LOCAL_GID: ${LOCAL_GID:-1000}
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    working_dir: /workspace
+    command:
+      - mlflow
+      - server
+      - --host
+      - 0.0.0.0
+      - --port
+      - "5000"
+      - --backend-store-uri
+      - sqlite:////workspace/data/experiments/mlflow-compose.db
+      - --serve-artifacts
+      - --artifacts-destination
+      - /workspace/data/experiments/mlflow-compose-artifacts
+      - --allowed-hosts
+      - mlflow:5000,127.0.0.1:5001,localhost:5001
+    environment:
+      HOME: /tmp
+    ports:
+      - "127.0.0.1:5001:5000"
+    volumes:
+      - ../data/experiments:/workspace/data/experiments
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  trainer:
+    profiles: ["training"]
+    image: movie-recommendation-training:local
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.training
+      args:
+        LOCAL_UID: ${LOCAL_UID:-1000}
+        LOCAL_GID: ${LOCAL_GID:-1000}
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    working_dir: /workspace
+    command: ["python", "-u", "ml/run_experiment.py"]
+    environment:
+      HOME: /tmp
+      SPARK_SUBMIT_OPTS: -Duser.home=/tmp
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    volumes:
+      - ../data/raw:/workspace/data/raw:ro
+      - ../data/experiments:/workspace/data/experiments
+      - ../artifacts:/workspace/artifacts
+    depends_on:
+      mlflow:
+        condition: service_healthy
+
+volumes:
+  recommender_postgres:

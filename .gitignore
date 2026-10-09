@@ -1,0 +1,25 @@
+# Local data and model artifacts
+data/
+artifacts/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+code_memory.db*
+
+# JavaScript / Next.js / Playwright
+web/node_modules/
+web/.next/
+web/out/
+web/playwright-report/
+web/test-results/
+web/tsconfig.tsbuildinfo
+web/AGENTS.md
+
+# Local configuration and editor files
+.env
+.env.*
+!.env.example
+.DS_Store

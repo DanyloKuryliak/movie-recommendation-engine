@@ -1,0 +1,27 @@
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+
+ARG TARGETARCH
+ARG LOCAL_UID=1000
+ARG LOCAL_GID=1000
+
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    PYTHONUNBUFFERED=1 \
+    JAVA_HOME=/usr/lib/jvm/java-17-openjdk-${TARGETARCH}
+
+WORKDIR /workspace
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openjdk-17-jre-headless \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd --force --gid "${LOCAL_GID}" app \
+    && useradd --no-log-init --uid "${LOCAL_UID}" --gid "${LOCAL_GID}" --create-home app
+
+COPY ml/pyproject.toml ml/uv.lock ./ml/
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --project ml --locked --no-dev
+
+COPY ml/ ./ml/
+ENV PATH="/workspace/ml/.venv/bin:$PATH"
+
+ENTRYPOINT []
